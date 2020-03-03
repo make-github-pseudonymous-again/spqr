@@ -1,0 +1,113 @@
+#!/usr/bin/env sh
+
+function show_help ( ) {
+  echo "Usage: $0 -n NAME -i IBAN [-c CURRENCY] -a AMOUNT [-B BIC] [-P PURPOSE_CODE] [-S STRUCTURED_REFERENCE] [-U UNSTRUCTURED_REFERENCE] [-I INFORMATION]"
+  exit 2
+}
+
+function assertNonEmpty () {
+  varname="$1"
+  if [ -z "${!varname}" ] ; then
+    >&2 echo "${varname} cannot be an empty string."
+    exit 1
+  fi
+}
+
+function toFixed ( ) {
+  printf "scale=%s;%s\n" "$1" "$2" |
+    bc |
+    sed -e 's/^\./0./'        `# add "0" for cases like ".5"` \
+        -e 's/^-\./-0./'      `# add "0" for cases like "-.5"`
+}
+
+SERVICE_TAG='BCD'
+VERSION='002'
+CHARACTER_SET=1
+IDENTIFICATION_CODE='SCT'
+CURRENCY='EUR'
+NAME=''
+IBAN=''
+BIC=''
+AMOUNT=''
+PURPOSE_CODE=''
+STRUCTURED_REFERENCE=''
+UNSTRUCTURED_REFERENCE=''
+INFORMATION=''
+
+OPTIND=1        # Reset in case getopts has been used previously in the shell.
+
+while getopts "hc:a:i:n:B:P:S:U:I:" opt; do
+  case "$opt" in
+    h) show_help ;;
+    c) CURRENCY="$OPTARG" ;;
+    a) AMOUNT="$OPTARG" ;;
+    i) IBAN="$OPTARG" ;;
+    n) NAME="$OPTARG" ;;
+    B) BIC="$OPTARG" ;;
+    P) PURPOSE_CODE="$OPTARG" ;;
+    S) STRUCTURED_REFERENCE="$OPTARG" ;;
+    U) UNSTRUCTURED_REFERENCE="$OPTARG" ;;
+    I) INFORMATION="$OPTARG" ;;
+  esac
+done
+
+assertNonEmpty NAME
+assertNonEmpty IBAN
+assertNonEmpty CURRENCY
+assertNonEmpty AMOUNT
+
+if [ "${#NAME}" -gt 70 ] ; then
+  >^2 echo "NAME can be maximum 70 characters long."
+  exit 1
+fi
+
+is_float='^[0-9]+(\.[0-9]+)?$'
+
+if grep -v -q -E "$is_float" <<< "$AMOUNT" ; then
+  >&2 echo "AMOUNT (${AMOUNT}) must be a number."
+  exit 1
+fi
+
+if [ "$(bc <<< "${AMOUNT} < 0.01")" -ne 0 ] || [ "$(bc <<< "${AMOUNT} > 999999999.99")" -ne 0 ] ; then
+  >&2 echo "AMOUNT (${AMOUNT}) must be >=0.01 and <=999999999.99"
+  exit 1
+fi
+
+# TODO validate BIC, 8/11 chars
+# TODO validate IBAN
+# TODO validate CURRENCY_CODE
+# TODO validate PURPOSE_CODE against AT-44
+# TODO validate STRUCTURED_REFERENCE against AT-05
+
+if [ "${#STRUCTURED_REFERENCE}" -gt 35 ] ; then
+  >^2 echo "STRUCTURED_REFERENCE can be maximum 35 characters long."
+  exit 1
+fi
+
+if [ "${#UNSTRUCTURED_REFERENCE}" -gt 140 ] ; then
+  >^2 echo "UNSTRUCTURED_REFERENCE can be maximum 140 characters long."
+  exit 1
+fi
+
+if [ "${#INFORMATION}" -gt 70 ] ; then
+  >^2 echo "INFORMATION can be maximum 70 characters long."
+  exit 1
+fi
+
+if [ -n "$STRUCTURED_REFERENCE" ] && [ -n "$UNSTRUCTURED_REFERENCE" ] ; then
+  >&2 echo "Cannot define STRUCTURED_REFERENCE and UNSTRUCTURED_REFERENCE simultaneously."
+  exit 1
+fi
+
+printf "%s\n" "$SERVICE_TAG"
+printf "%s\n" "$VERSION"
+printf "%s\n" "$CHARACTER_SET"
+printf "%s\n" "$IDENTIFICATION_CODE"
+printf "%s\n" "$BIC"
+printf "%s\n" "$NAME"
+printf "%s\n" "$IBAN"
+printf "%s\n" "${CURRENCY}$(toFixed 2 "$AMOUNT")"
+printf "%s\n" "$PURPOSE_CODE"
+printf "%s\n" "$STRUCTURED_REFERENCE"
+printf "%s\n" "$UNSTRUCTURED_REFERENCE"
+printf "%s"   "$INFORMATION"
