@@ -1,4 +1,4 @@
-# spqr
+# :dagger: spqr
 
 > Generate a QR code payload for initiating a SEPA transfer.
 
