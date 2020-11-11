@@ -1,5 +1,6 @@
 :dagger: spqr
 [![License](https://img.shields.io/github/license/aureooms/spqr.svg?style=flat)](https://raw.githubusercontent.com/aureooms/spqr/main/LICENSE)
+[![Build status](https://img.shields.io/travis/aureooms/spqr/main.svg)](https://travis-ci.org/aureooms/spqr/branches)
 ==
 
 Generate a QR code payload for initiating a SEPA transfer.
