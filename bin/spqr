@@ -1,19 +1,19 @@
 #!/usr/bin/env sh
 
-function show_help ( ) {
+show_help() {
   echo "Usage: $0 -n NAME -i IBAN [-c CURRENCY] -a AMOUNT [-B BIC] [-P PURPOSE_CODE] [-S STRUCTURED_REFERENCE] [-U UNSTRUCTURED_REFERENCE] [-I INFORMATION]"
   exit 2
 }
 
-function assertNonEmpty () {
+assertNonEmpty() {
   varname="$1"
-  if [ -z "${!varname}" ] ; then
+  if [ -z "$(eval echo "\$$varname")" ] ; then
     >&2 echo "${varname} cannot be an empty string."
     exit 1
   fi
 }
 
-function toFixed ( ) {
+toFixed() {
   printf "scale=%s;%s\n" "$1" "$2" |
     bc |
     sed -e 's/^\./0./'        `# add "0" for cases like ".5"` \
@@ -48,6 +48,7 @@ while getopts "hc:a:i:n:B:P:S:U:I:" opt; do
     S) STRUCTURED_REFERENCE="$OPTARG" ;;
     U) UNSTRUCTURED_REFERENCE="$OPTARG" ;;
     I) INFORMATION="$OPTARG" ;;
+    *) exit 3 ;;
   esac
 done
 
@@ -63,12 +64,12 @@ fi
 
 is_float='^[0-9]+(\.[0-9]+)?$'
 
-if grep -v -q -E "$is_float" <<< "$AMOUNT" ; then
+if printf '%s' "$AMOUNT" | grep -v -q -E "$is_float" ; then
   >&2 echo "AMOUNT (${AMOUNT}) must be a number."
   exit 1
 fi
 
-if [ "$(bc <<< "${AMOUNT} < 0.01")" -ne 0 ] || [ "$(bc <<< "${AMOUNT} > 999999999.99")" -ne 0 ] ; then
+if [ "$(printf '%s < 0.01\n' "$AMOUNT" | bc)" -ne 0 ] || [ "$(printf '%s > 999999999.99\n' "$AMOUNT" | bc)" -ne 0 ] ; then
   >&2 echo "AMOUNT (${AMOUNT}) must be >=0.01 and <=999999999.99"
   exit 1
 fi
